@@ -1,6 +1,4 @@
-#include <PID_v1.h>
-#include <Servo.h>
-#include <Arduino.h>
+#include "header.h"
 #include "functions.h"
 
 #define DIST_S 200*58.2
@@ -22,6 +20,40 @@ float Kp = 2.5;                //P게인 값
 float Ki = 0;                  //I게인 값 
 float Kd = 1;                  //D게인 값
     
+
+const int MPU_addr=0x68; 
+int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
+//mpu 기준으로 일단 구현
+
+
+
+
+const int MPU_addr=0x68; int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
+
+int minVal=265; int maxVal=402;
+
+double x; double y; double z;
+
+
+void getAngle()
+{
+    Wire.beginTransmission(MPU_addr); 
+    Wire.write(0x3B); 
+    Wire.endTransmission(false);     
+    Wire.requestFrom(MPU_addr,14,true); 
+    AcX=Wire.read()<<8|Wire.read(); 
+    AcY=Wire.read()<<8|Wire.read(); 
+    AcZ=Wire.read()<<8|Wire.read(); 
+    int xAng = map(AcX,minVal,maxVal,-90,90); 
+    int yAng = map(AcY,minVal,maxVal,-90,90); 
+    int zAng = map(AcZ,minVal,maxVal,-90,90);
+
+    x= RAD_TO_DEG * (atan2(-yAng, -zAng)+PI); 
+    y= RAD_TO_DEG * (atan2(-xAng, -zAng)+PI); 
+    z= RAD_TO_DEG * (atan2(-yAng, -xAng)+PI);    
+}
+//gyro sensor get x,y,z
+
 
 //모터
 Servo myServo;                                     //서보 객체 생성, 초기화
@@ -126,38 +158,64 @@ bool isStuckFront()
     }
     else return false;
 }
-void setup() {
-    Serial.begin(38400);                  //시리얼 통신 초기화
+
+void gyroInit()
+{
+    Wire.begin(); 
+    Wire.beginTransmission(MPU_addr); 
+    Wire.write(0x6B); 
+    Wire.write(0); 
+    Wire.endTransmission(true); 
+}
+
+void motorInit()
+{
     
+}
+
+void sonarSensorInit()
+{
     pinMode(s_side_sonar1,OUTPUT);
     pinMode(s_side_sonar2,OUTPUT);
     pinMode(s_side_sonar2,INPUT);
-    pinMode(s_side_sonar1,INPUT);
+    pinMode(s_side_sonar1,INPUT); 
+}
+
+void setup() {
+    
+    Serial.begin(9600);
+    sonarSensorInit();
+    gyroInit();
+    motorInit();
+   
 //                                      초음파 센서
 
     //초음파 센서 설정
-        
 }
-
+void goThruWindow()
+{
+    
+}
 
 void loop() 
 {
     pingTimer=millis();
-    bool check_front=isStuckFront();
+    while(getHeight()>=40){
+        throttleUp();
+    }
+    
     int count=0;
-    if(check_front){ 
+    if(!isStuckFront(){ 
         goForward();
         count++;
-    }
+    }//앞에 창문이 없다면
     else{
         while(getLeftDis()>10){
             rollLeft();    
         }        
     }
     if(count==3){
-        return;
+        return; //코드를 종료한다.
     }
 }
-
-//초음파 거리 측정
 

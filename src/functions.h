@@ -13,3 +13,4 @@ void rollRight();
 long getFrontDisRight();
 long getFrontDisLeft();
 bool isStuckFront();
+void sonarSensorInit();
