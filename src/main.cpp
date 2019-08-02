@@ -1,7 +1,7 @@
 #include <PID_v1.h>
 #include <Servo.h>
 #include <Arduino.h>
-#include "variables.h"
+#include "functions.h"
 
 #define DIST_S 200*58.2
 #define PING_INTRERVAL 33
@@ -11,8 +11,9 @@
 모터는 앞에 m이 붙음
 함수는 구분자가 대문자
 변수는 구분자가 언더바
-
 */
+// http://blog.naver.com/PostView.nhn?blogId=rlrkcka&logNo=221380249135&parentCategoryNo=&categoryNo=18&viewDate=&isShowPopularPosts=false&from=postView
+// http://reefwingrobotics.blogspot.com/2018/04/arduino-self-levelling-drone-part-5.html
 const int servoPin = 9;                          //서보의 핀번호
 unsigned long int pingTimer;
 
@@ -37,7 +38,7 @@ const int s_bottom_lazer2=4; //드론 높이 제어 센서
 const int s_front_lidar1=5;
 const int s_front_lidar2=6;
 
-float getHeight()
+long getHeight()
 {        
     int data = analogRead(s_bottom_lazer2); 
 	int volt = map(data, 0, 1023, 0, 5000);
@@ -45,7 +46,7 @@ float getHeight()
     return distance;
 }
 
-long getSonarDis(int TRIG,int ECHO)
+long getRightDis(int TRIG,int ECHO) //초음파 센서로
 {
     long dist;
     digitalWrite(TRIG, LOW); 
@@ -53,37 +54,78 @@ long getSonarDis(int TRIG,int ECHO)
     digitalWrite(TRIG, HIGH); 
     delayMicroseconds(10);
     digitalWrite(TRIG, LOW);
-    dist = pulseIn(ECHO, HIGH,DIST_S)/58.2;
+    dist = pulseIn(ECHO, HIGH,DIST_S)/58.2;//멕시멈값을 잡는다
     return(dist);
 }
 
-float getLeftDis()
+long getLeftDis()
 {
     int distance=1;
-     return distance;   
+    return distance;   
 }
 
-void forward(int speed,int time)
+
+void goForward()
 {
-        
+    hovering(0.3);
+    long distance=getFrontDisLeft();
 }
+
+void yaw()
+{
+    
+}
+
 //정지
-void hovering(int time)
+void hovering(float time)
 {
     
 }
 
 //상승, 하강
-void throttle()
-{
-    
-}
-//자우로 이동
-void roll()
+
+void throttleUp()
 {
     
 }
 
+void throttleDown()
+{
+    
+}
+
+//좌우로 이동
+void rollLeft()
+{
+    
+}
+
+void rollRight()
+{
+    
+}
+
+long getFrontDisRight()
+{
+    long distance=1;
+    return distance;
+}
+
+long getFrontDisLeft()
+{
+    long distance;
+    return distance;
+}// lidar sensor distance
+
+bool isStuckFront()
+{
+    long left_distance=getFrontDisLeft();
+    long right_distance=getFrontDisRight();
+    if(left_distance< 30|| right_distance<30){
+        return true;
+    }
+    else return false;
+}
 void setup() {
     Serial.begin(38400);                  //시리얼 통신 초기화
     
@@ -94,12 +136,27 @@ void setup() {
 //                                      초음파 센서
 
     //초음파 센서 설정
-    pingTimer=millis();
-    
+        
 }
 
 
-void loop() {
+void loop() 
+{
+    pingTimer=millis();
+    bool check_front=isStuckFront();
+    int count=0;
+    if(check_front){ 
+        goForward();
+        count++;
+    }
+    else{
+        while(getLeftDis()>10){
+            rollLeft();    
+        }        
+    }
+    if(count==3){
+        return;
+    }
 }
 
 //초음파 거리 측정
