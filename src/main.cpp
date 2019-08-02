@@ -12,10 +12,13 @@
 */
 // http://blog.naver.com/PostView.nhn?blogId=rlrkcka&logNo=221380249135&parentCategoryNo=&categoryNo=18&viewDate=&isShowPopularPosts=false&from=postView
 // http://reefwingrobotics.blogspot.com/2018/04/arduino-self-levelling-drone-part-5.html
+// https://sensibilityit.tistory.com/455?category=657462
+
 const int servoPin = 9;                          //서보의 핀번호
 unsigned long int pingTimer;
 
-
+float base_acX, base_acY, base_acZ;  //가속도 평균값 저장 변수
+float base_gyX, base_gyY, base_gyZ;  //자이로 평균값 저장 변수
 float Kp = 2.5;                //P게인 값
 float Ki = 0;                  //I게인 값 
 float Kd = 1;                  //D게인 값
@@ -25,32 +28,39 @@ const int MPU_addr=0x68;
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
 //mpu 기준으로 일단 구현
 
-
-
-
-const int MPU_addr=0x68; int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
-
-int minVal=265; int maxVal=402;
-
 double x; double y; double z;
 
 
+void calibAccelGyro(){
+  float sum_acX = 0, sum_acY = 0, sum_acZ = 0;
+  float sum_gyX = 0, sum_gyY = 0, sum_gyZ = 0;
+
+  getAngle(); //가속도 자이로 센서 읽어들임
+
+  //평균값 구하기
+  for(int i=0; i<10; i++){
+    getAngle();
+    sum_acX += AcX; sum_acY += AcY; sum_acZ += AcZ;
+    sum_gyX += GyX; sum_gyY += GyY; sum_gyZ += GyZ;
+    delay(100);
+  }
+  base_acX = sum_acX / 10; base_acY = sum_acY / 10; base_acZ = sum_acZ / 10;
+  base_gyX = sum_gyX / 10; base_gyY = sum_gyY / 10; base_gyZ = sum_gyZ / 10;
+}
+
 void getAngle()
 {
-    Wire.beginTransmission(MPU_addr); 
-    Wire.write(0x3B); 
-    Wire.endTransmission(false);     
-    Wire.requestFrom(MPU_addr,14,true); 
-    AcX=Wire.read()<<8|Wire.read(); 
-    AcY=Wire.read()<<8|Wire.read(); 
-    AcZ=Wire.read()<<8|Wire.read(); 
-    int xAng = map(AcX,minVal,maxVal,-90,90); 
-    int yAng = map(AcY,minVal,maxVal,-90,90); 
-    int zAng = map(AcZ,minVal,maxVal,-90,90);
-
-    x= RAD_TO_DEG * (atan2(-yAng, -zAng)+PI); 
-    y= RAD_TO_DEG * (atan2(-xAng, -zAng)+PI); 
-    z= RAD_TO_DEG * (atan2(-yAng, -xAng)+PI);    
+    Wire.beginTransmission(MPU_addr); //0x68번지 값을 가지는 MPU-6050과 I2C 통신 시작
+    Wire.write(0x3B); //0x3B번지에 저장
+    Wire.endTransmission(false); //데이터 전송 후 재시작 메새지 전송(연결은 계속 지속)
+    Wire.requestFrom(MPU_addr, 14, true); //0x68 번지에 0x3B 부터 48까지 총 14바이트 저장
+    AcX = Wire.read() << 8 | Wire.read();
+    AcY = Wire.read() << 8 | Wire.read();
+    AcZ = Wire.read() << 8 | Wire.read();
+    Tmp = Wire.read() << 8 | Wire.read();
+    GyX = Wire.read() << 8 | Wire.read();
+    GyY = Wire.read() << 8 | Wire.read();
+    GyZ = Wire.read() << 8 | Wire.read();
 }
 //gyro sensor get x,y,z
 
@@ -205,7 +215,7 @@ void loop()
     }
     
     int count=0;
-    if(!isStuckFront(){ 
+    if(!isStuckFront()){ 
         goForward();
         count++;
     }//앞에 창문이 없다면

@@ -14,3 +14,4 @@ long getFrontDisRight();
 long getFrontDisLeft();
 bool isStuckFront();
 void sonarSensorInit();
+void getAngle();
