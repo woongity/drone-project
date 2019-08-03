@@ -3,10 +3,16 @@
 
 #define MAX_SIGNAL 2000
 #define MIN_SIGNAL 1000
-#define MOTOR_PIN 9
+#define MOTOR_PIN1 9
+#define MOTOR_PIN2 3
+#define MOTOR_PIN3 5
+#define MOTOR_PIN4 6
 int DELAY = 1000;
 
-Servo motor;
+Servo motor1;
+Servo motor2;
+Servo motor3;
+Servo motor4;
 
 void setup() {
   Serial.begin(9600);
@@ -18,11 +24,19 @@ void setup() {
   delay(1000);
   Serial.println("This program will start the ESC.");
 
-  motor.attach(MOTOR_PIN);
+  motor1.attach(MOTOR_PIN1);
+  motor2.attach(MOTOR_PIN2);
+  motor3.attach(MOTOR_PIN3);
+  motor4.attach(MOTOR_PIN4);
+  
+  
 
   Serial.print("Now writing maximum output: (");Serial.print(MAX_SIGNAL);Serial.print(" us in this case)");Serial.print("\n");
   Serial.println("Turn on power source, then wait 2 seconds and press any key.");
-  motor.writeMicroseconds(MAX_SIGNAL);
+  motor1.writeMicroseconds(MAX_SIGNAL);
+motor2.writeMicroseconds(MAX_SIGNAL);
+motor3.writeMicroseconds(MAX_SIGNAL);
+motor4.writeMicroseconds(MAX_SIGNAL);
 
   // Wait for input
   while (!Serial.available());
@@ -32,7 +46,10 @@ void setup() {
   Serial.println("\n");
   Serial.println("\n");
   Serial.print("Sending minimum output: (");Serial.print(MIN_SIGNAL);Serial.print(" us in this case)");Serial.print("\n");
-  motor.writeMicroseconds(MIN_SIGNAL);
+  motor1.writeMicroseconds(MIN_SIGNAL);
+   motor2.writeMicroseconds(MIN_SIGNAL);
+    motor3.writeMicroseconds(MIN_SIGNAL);
+     motor4.writeMicroseconds(MIN_SIGNAL);
   Serial.println("The ESC is calibrated");
   Serial.println("----");
   Serial.println("Now, type a values between 1000 and 2000 and press enter");
@@ -49,7 +66,11 @@ void loop() {
     if (DELAY > 999)
     {
       
-      motor.writeMicroseconds(DELAY);
+      motor1.writeMicroseconds(DELAY);
+      motor2.writeMicroseconds(DELAY);
+      motor3.writeMicroseconds(DELAY);
+      motor4.writeMicroseconds(DELAY);
+      
       float SPEED = (DELAY-1000)/10;
       Serial.print("\n");
       Serial.println("Motor speed:"); Serial.print("  "); Serial.print(SPEED); Serial.print("%"); 
@@ -57,5 +78,3 @@ void loop() {
   }
 }
  
-
-
