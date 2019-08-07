@@ -7,6 +7,8 @@
 // http://blog.naver.com/PostView.nhn?blogId=rlrkcka&logNo=221380249135&parentCategoryNo=&categoryNo=18&viewDate=&isShowPopularPosts=false&from=postView
 // http://reefwingrobotics.blogspot.com/2018/04/arduino-self-levelling-drone-part-5.html
 // https://sensibilityit.tistory.com/455?category=657462
+// http://kr.bluesink.io/t/mpu-9250/36/5
+// https://raduino.tistory.com/13
 //     m_left_rear.attach(3);
 //     m_left_front.attach(5);
 //     m_right_rear.attach(6);
@@ -19,9 +21,7 @@
 #define PING_INTRERVAL 33
 #define MOTORMAX 2000
 #define MOTORMIN 1000
-                     //서보의 핀번호
-unsigned long int pingTimer;
-
+                    
 float base_acX, base_acY, base_acZ;  //가속도 평균값 저장 변수
 float base_gyX, base_gyY, base_gyZ;  //자이로 평균값 저장 변수
 float Kp = 2.5;                //P게인 값
@@ -52,6 +52,7 @@ double x; double y; double z;
 
 void calibMotor()
 {
+    delay(2500);
     m_left_rear.writeMicroseconds(MOTORMAX);
     m_left_front.writeMicroseconds(MOTORMAX);
     m_right_rear.writeMicroseconds(MOTORMAX);
@@ -98,10 +99,12 @@ void getAngle()
                  
 long getHeight()
 {        
-    int data = analogRead(s_bottom_lazer2); 
-	int volt = map(data, 0, 1023, 0, 5000);
-	float distance = (21.61/(volt-0.1696))*1000; 
-    return distance;
+	// int data = analogRead(s_bottom_lazer2); 
+	// int volt = map(data, 0, 1023, 0, 5000);
+	// float distance = (21.61/(volt-0.1696))*1000; 
+	// return distance;
+    return 10;
+//     TODO : 초음파 센서나 적외선 센서로 높이를 계속 측정해야 한다.
 }
 
 long getRightDis(int TRIG,int ECHO) //초음파 센서로
@@ -135,20 +138,22 @@ void yaw()
 }
 
 //정지
-void hovering(float time)
+void hovering()
 {
-    
+        
 }
 
 //상승, 하강
 
-void throttleUp(int target_speed)
+void throttleUp()
 {
-    int speed = map(target_speed,0,1024,MOTORMIN,MOTORMAX);
-    m_left_rear.writeMicroseconds(speed);
-    m_right_rear.writeMicroseconds(speed);
-    m_left_front.writeMicroseconds(speed);
-    m_right_front.writeMicroseconds(speed);
+    for(int speed=MOTORMIN;speed<=1500;speed+=1){
+        m_left_rear.writeMicroseconds(speed);
+        m_right_rear.writeMicroseconds(speed);
+        m_left_front.writeMicroseconds(speed);
+        m_right_front.writeMicroseconds(speed);
+    }
+    hovering();
 }
 
 void throttleDown()
@@ -205,11 +210,11 @@ void gyroInit()
 
 void motorInit()
 {
-    m_left_rear.attach(3,MOTORMIN,MOTORMAX);
-    m_left_front.attach(5,MOTORMIN,MOTORMAX);
-    m_right_rear.attach(6,MOTORMIN,MOTORMAX);
-    m_right_front.attach(9,MOTORMIN,MOTORMAX);
-    //calibMotor();
+    m_left_rear.attach(3);
+    m_left_front.attach(5);
+    m_right_rear.attach(6);
+    m_right_front.attach(9);
+    calibMotor();
 }
 
 void sonarSensorInit()
@@ -234,13 +239,13 @@ void setup() {
 
 void loop()
 {
-    long target_speed = 1200;
     int count=0;
     if(count==3){
         return;
     }
-    throttleUp(target_speed);
-    delay(100);
+    while(getHeight()<=40){
+        throttleUp();    
+    }
 }
 
 
