@@ -15,3 +15,5 @@ long getFrontDisLeft();
 bool isStuckFront();
 void sonarSensorInit();
 void getAngle();
+
+void calibMotor();
