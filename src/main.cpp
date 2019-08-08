@@ -3,6 +3,8 @@
 모터는 앞에 m이 붙음
 함수는 구분자가 대문자
 변수는 구분자가 언더바
+
+
 */
 // http://blog.naver.com/PostView.nhn?blogId=rlrkcka&logNo=221380249135&parentCategoryNo=&categoryNo=18&viewDate=&isShowPopularPosts=false&from=postView
 // http://reefwingrobotics.blogspot.com/2018/04/arduino-self-levelling-drone-part-5.html
@@ -16,43 +18,27 @@
 
 #include "header.h"
 #include "functions.h"
+#include "gyro_variables.h"
+#include "motor_sensor_variables.h"
 
-#define DIST_S 200*58.2
 #define PING_INTRERVAL 33
 #define MOTORMAX 2000
 #define MOTORMIN 1000
-                    
-float base_acX, base_acY, base_acZ;  //가속도 평균값 저장 변수
-float base_gyX, base_gyY, base_gyZ;  //자이로 평균값 저장 변수
-float Kp = 2.5;                //P게인 값
-float Ki = 0;                  //I게인 값 
-float Kd = 1;                  //D게인 값
-    
-//모터
-Servo myServo;                                     //서보 객체 생성, 초기화
-Servo m_left_front;
-Servo m_left_rear;
-Servo m_right_front;
-Servo m_right_rear;
-
-//센서들
-const int s_side_sonar1=1;
-const int s_side_sonar2=2;
-const int s_bottom_lazer1=3;
-const int s_bottom_lazer2=4; //드론 높이 제어 센서
-const int s_front_lidar1=5;
-const int s_front_lidar2=6;
-
-
-const int MPU_addr=0x68; 
-int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
+#define MPU_addr 0x68
+//모터                    
+ 
 //mpu 기준으로 일단 구현
 
-double x; double y; double z;
+//시간관련 값//
 
+void calcDT(){
+  t_now = micros();
+  dt = (t_now - t_prev) / 1000000.0;
+  t_prev = t_now;
+}
+//모터 캘리브레이션을 진행한다. 
 void calibMotor()
 {
-    delay(2500);
     m_left_rear.writeMicroseconds(MOTORMAX);
     m_left_front.writeMicroseconds(MOTORMAX);
     m_right_rear.writeMicroseconds(MOTORMAX);
@@ -63,7 +49,7 @@ void calibMotor()
     m_right_rear.writeMicroseconds(MOTORMIN);
     m_right_front.writeMicroseconds(MOTORMIN);
 }
-
+// 현재 자이로 센서에서 받아들이는 초기값을 설정한다. -> 초기에 정지한 상태에서 현재값을 읽어들인다.
 void calibAccelGyro(){
   float sum_acX = 0, sum_acY = 0, sum_acZ = 0;
   float sum_gyX = 0, sum_gyY = 0, sum_gyZ = 0;
@@ -81,42 +67,96 @@ void calibAccelGyro(){
   base_gyX = sum_gyX / 10; base_gyY = sum_gyY / 10; base_gyZ = sum_gyZ / 10;
 }
 
+void calcGyroYPR(){
+  const float GYROXYZ_TO_DEGREES_PER_SEC = 131;
+
+  gyro_x = (GyX - base_gyX) / GYROXYZ_TO_DEGREES_PER_SEC;
+  gyro_y = (GyY - base_gyY) / GYROXYZ_TO_DEGREES_PER_SEC;
+  gyro_z = (GyZ - base_gyZ) / GYROXYZ_TO_DEGREES_PER_SEC;
+}
+
+void initDT(){
+  t_prev = micros(); //초기 t_prev값은 근사값//
+}
+
+void initYPR(){
+  //초기 호버링의 각도를 잡아주기 위해서 Roll, Pitch, Yaw 상보필터 구하는 과정을 10번 반복한다.
+  for(int i=0; i<10; i++){
+    getAngle();
+    calcDT();
+    calcAccelYPR();
+    calcGyroYPR();
+    calcFilteredYPR();
+
+    base_roll_target_angle += filtered_angle_y;
+    base_pitch_target_angle += filtered_angle_x;
+    base_yaw_target_angle += filtered_angle_z;
+
+    delay(100);
+    //평균값을 구한다.//
+  base_roll_target_angle /= 10;
+  base_pitch_target_angle /= 10;
+  base_yaw_target_angle /= 10;
+
+  //초기 타겟 각도를 잡아준다.//
+  roll_target_angle = base_roll_target_angle;
+  pitch_target_angle = base_pitch_target_angle;
+  yaw_target_angle = base_yaw_target_angle;
+    }
+}
+
+void calcAccelYPR(){
+  float accel_x, accel_y, accel_z;
+  float accel_xz, accel_yz;
+  const float RADIANS_TO_DEGREES = 180 / 3.14159;
+
+  accel_x = AcX - base_acX;
+  accel_y = AcY - base_acY;
+  accel_z = AcZ + (16384 - base_acZ);
+
+  //accel_angle_y는 Roll각을 의미//
+  accel_yz = sqrt(pow(accel_y, 2) + pow(accel_z, 2));
+  accel_angle_y = atan(-accel_x / accel_yz) * RADIANS_TO_DEGREES;
+
+  //accel_angle_x는 Pitch값을 의미//
+  accel_xz = sqrt(pow(accel_x, 2) + pow(accel_z, 2));
+  accel_angle_x = atan(accel_y / accel_xz) * RADIANS_TO_DEGREES;
+
+  accel_angle_z = 0; //중력 가속도(g)의 방향과 정반대의 방향을 가리키므로 가속도 센서를 이용해서는 회전각을 계산할 수 없다.//
+}
+
+void initMotorSpeed(){
+  analogWrite(3, MOTORMIN);
+  delay(1000);
+  analogWrite(5, MOTORMIN);
+  delay(1000);
+  analogWrite(6, MOTORMIN);
+  delay(1000);
+  analogWrite(9, MOTORMIN);
+  delay(1000);
+}
+
+
+
 void getAngle()
 {
-    Wire.beginTransmission(MPU_addr); //0x68번지 값을 가지는 MPU-6050과 I2C 통신 시작
+    Wire.beginTransmission(MPU_addr); //0x68번지 값을 가지는 MPU-9250과 I2C 통신 시작
     Wire.write(0x3B); //0x3B번지에 저장
     Wire.endTransmission(false); //데이터 전송 후 재시작 메새지 전송(연결은 계속 지속)
     Wire.requestFrom(MPU_addr, 14, true); //0x68 번지에 0x3B 부터 48까지 총 14바이트 저장
-    AcX = Wire.read() << 8 | Wire.read();
-    AcY = Wire.read() << 8 | Wire.read();
-    AcZ = Wire.read() << 8 | Wire.read();
-    Tmp = Wire.read() << 8 | Wire.read();
-    GyX = Wire.read() << 8 | Wire.read();
-    GyY = Wire.read() << 8 | Wire.read();
-    GyZ = Wire.read() << 8 | Wire.read();
-}
-//gyro sensor get x,y,z
-                 
-long getHeight()
-{        
-	// int data = analogRead(s_bottom_lazer2); 
-	// int volt = map(data, 0, 1023, 0, 5000);
-	// float distance = (21.61/(volt-0.1696))*1000; 
-	// return distance;
-    return 10;
-//     TODO : 초음파 센서나 적외선 센서로 높이를 계속 측정해야 한다.
+    AcX = Wire.read() << 8 | Wire.read(); //x축 가속도
+    AcY = Wire.read() << 8 | Wire.read(); //y축 가속도
+    AcZ = Wire.read() << 8 | Wire.read(); //z축 가속도
+    Tmp = Wire.read() << 8 | Wire.read(); 
+    GyX = Wire.read() << 8 | Wire.read(); //x축 자이로
+    GyY = Wire.read() << 8 | Wire.read();// y축 자이로
+    GyZ = Wire.read() << 8 | Wire.read();//z축 자이로
 }
 
-long getRightDis(int TRIG,int ECHO) //초음파 센서로
-{
-    long dist=1;
-    digitalWrite(TRIG, LOW); 
-    delayMicroseconds(2); 
-    digitalWrite(TRIG, HIGH); 
-    delayMicroseconds(10);
-    digitalWrite(TRIG, LOW);
-    dist = pulseIn(ECHO, HIGH,DIST_S)/58.2;//멕시멈값을 잡는다
-    return(dist);
+
+long getHeight()
+{        
+    return sonar.ping_cm();
 }
 
 long getLeftDis()
@@ -145,14 +185,14 @@ void hovering()
 
 //상승, 하강
 
-void throttleUp()
+void throttleUp(int speed)
 {
-    for(int speed=MOTORMIN;speed<=1500;speed+=1){
-        m_left_rear.writeMicroseconds(speed);
-        m_right_rear.writeMicroseconds(speed);
-        m_left_front.writeMicroseconds(speed);
-        m_right_front.writeMicroseconds(speed);
-    }
+    m_left_rear.writeMicroseconds(speed);
+    m_right_rear.writeMicroseconds(speed);
+    m_left_front.writeMicroseconds(speed);
+    m_right_front.writeMicroseconds(speed);
+    Serial.println(getHeight());
+        
     hovering();
 }
 
@@ -174,13 +214,26 @@ void rollRight()
 
 int pidControl()
 {
-        
+            
 }
 
 long getFrontDisRight()
 {
     long distance=1;
     return distance;
+}
+void calcFilteredYPR(){
+  const float ALPHA = 0.96;
+  float tmp_angle_x, tmp_angle_y, tmp_angle_z;
+
+  tmp_angle_x = filtered_angle_x + gyro_x * dt;
+  tmp_angle_y = filtered_angle_y + gyro_y * dt;
+  tmp_angle_z = filtered_angle_z + gyro_z * dt;
+
+  //상보필터 값 구하기(가속도, 자이로 센서의 절충)//
+  filtered_angle_x = ALPHA * tmp_angle_x + (1.0-ALPHA) * accel_angle_x;
+  filtered_angle_y = ALPHA * tmp_angle_y + (1.0-ALPHA) * accel_angle_y;
+  filtered_angle_z = tmp_angle_z;
 }
 
 long getFrontDisLeft()
@@ -201,7 +254,7 @@ bool isStuckFront()
 
 void gyroInit()
 {
-    Wire.begin(); 
+    Wire.begin();
     Wire.beginTransmission(MPU_addr); 
     Wire.write(0x6B); 
     Wire.write(0); 
@@ -210,6 +263,7 @@ void gyroInit()
 
 void motorInit()
 {
+    delay(2500);
     m_left_rear.attach(3);
     m_left_front.attach(5);
     m_right_rear.attach(6);
@@ -217,23 +271,11 @@ void motorInit()
     calibMotor();
 }
 
-void sonarSensorInit()
-{
-    pinMode(s_side_sonar1,OUTPUT);
-    pinMode(s_side_sonar2,OUTPUT);
-    pinMode(s_side_sonar2,INPUT);
-    pinMode(s_side_sonar1,INPUT); 
-}
-
-void goThruWindow()
-{
-    
-}
 
 void setup() {
-    Serial.begin(9600);
-    //sonarSensorInit();
-    //gyroInit();
+    Serial.begin(38400);
+    gyroInit();
+    gyroInit();
     motorInit();  
 }
 
@@ -243,8 +285,11 @@ void loop()
     if(count==3){
         return;
     }
-    while(getHeight()<=40){
-        throttleUp();    
+    else{
+        while(getHeight()<=40){ 
+            throttleUp(1000);
+            delay(500);
+        }    
     }
 }
 

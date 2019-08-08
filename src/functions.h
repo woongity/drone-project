@@ -9,11 +9,13 @@ void throttleDown();
 void rollLeft();
 
 void rollRight();
-
+void calcDT();
 long getFrontDisRight();
 long getFrontDisLeft();
 bool isStuckFront();
 void sonarSensorInit();
 void getAngle();
-
+void calibAccelGyro();
 void calibMotor();
+void calcAccelYPR();
+void calcFilteredYPR();
