@@ -8,6 +8,7 @@
 #define MOTORMIN 1000
 #define MPU_addr 0x68
 
+
 #define M_PIN_LEFT_FRONT 5
 #define M_PIN_LEFT_REAR 3
 #define M_PIN_RIGHT_FRONT 9
@@ -22,18 +23,18 @@ void calcDT(){
 }
 
 //모터 캘리브레이션을 진행한다. 
-void calibMotor()
-{
-    m_left_rear.writeMicroseconds(MOTORMAX);
-    m_left_front.writeMicroseconds(MOTORMAX);
-    m_right_rear.writeMicroseconds(MOTORMAX);
-    m_right_front.writeMicroseconds(MOTORMAX);
+// void calibMotor()
+// {
+//     m_left_rear.writeMicroseconds(MOTORMAX);
+//     m_left_front.writeMicroseconds(MOTORMAX);
+//     m_right_rear.writeMicroseconds(MOTORMAX);
+//     m_right_front.writeMicroseconds(MOTORMAX);
     
-    m_left_rear.writeMicroseconds(MOTORMIN);
-    m_left_front.writeMicroseconds(MOTORMIN);
-    m_right_rear.writeMicroseconds(MOTORMIN);
-    m_right_front.writeMicroseconds(MOTORMIN);
-}
+//     m_left_rear.writeMicroseconds(MOTORMIN);
+//     m_left_front.writeMicroseconds(MOTORMIN);
+//     m_right_rear.writeMicroseconds(MOTORMIN);
+//     m_right_front.writeMicroseconds(MOTORMIN);
+// }
 // 현재 자이로 센서에서 받아들이는 초기값을 설정한다. -> 초기에 정지한 상태에서 현재값을 읽어들인다.
 
 void calibAccelGyro(){
@@ -65,7 +66,8 @@ void initDT(){
   t_prev = micros(); //초기 t_prev값은 근사값//
 }
 
-void initYPR(){
+void initYPR()
+{
   //초기 호버링의 각도를 잡아주기 위해서 Roll, Pitch, Yaw 상보필터 구하는 과정을 10번 반복.
   for(int i=0; i<10; i++){
     getAngle();
@@ -80,21 +82,21 @@ void initYPR(){
 
     delay(100);
     //평균값을 구한다.//
-  base_roll_target_angle /= 10;
-  base_pitch_target_angle /= 10;
-  base_yaw_target_angle /= 10;
+    base_roll_target_angle /= 10;
+    base_pitch_target_angle /= 10;
+    base_yaw_target_angle /= 10;
 
-  //초기 타겟 각도를 잡아준다.//
-  roll_target_angle = base_roll_target_angle;
-  pitch_target_angle = base_pitch_target_angle;
-  yaw_target_angle = base_yaw_target_angle;
-    }
+    //초기 타겟 각도를 잡아준다.//
+    roll_target_angle = base_roll_target_angle;
+    pitch_target_angle = base_pitch_target_angle;
+    yaw_target_angle = base_yaw_target_angle;
+  }
 }
 
 void calcAccelYPR(){
   float accel_x, accel_y, accel_z;
   float accel_xz, accel_yz;
-  const float RADIANS_TO_DEGREES = 180 / 3.14159;
+  const float RADIANS_TO_DEGREES = 180 / PI;
 
   accel_x = AcX - base_acX;
   accel_y = AcY - base_acY;
@@ -137,6 +139,15 @@ void getAngle()
     GyX = Wire.read() << 8 | Wire.read(); //x축 자이로
     GyY = Wire.read() << 8 | Wire.read();// y축 자이로
     GyZ = Wire.read() << 8 | Wire.read();//z축 자이로
+    
+    
+    Serial.print("x accel speed : ");Serial.println(AcX);
+    
+    Serial.print("y accel speed  : ");Serial.println(AcY);
+    Serial.print("z accel speed : ");Serial.println(AcZ);
+    Serial.print("x gyro speed : ");Serial.println(GyX);
+    Serial.print("y gyro speed : ");Serial.println(GyY);
+    Serial.print("z gyro speed : ");Serial.println(GyZ);
 }
 
 
@@ -203,7 +214,9 @@ long getFrontDisRight()
     return distance;
     //TODO : 일단 테스트를 위해 값을 이런 식으로 구현. 
 }
-void calcFilteredYPR(){
+
+void calcFilteredYPR()
+{
   const float ALPHA = 0.96;
   float tmp_angle_x, tmp_angle_y, tmp_angle_z;
 
@@ -236,7 +249,6 @@ bool isStuckFront()
 //자이로 센서 초기화
 void gyroInit()
 {
-    //i2c연결
     Wire.begin();
     Wire.beginTransmission(MPU_addr); 
     Wire.write(0x6B); 
@@ -252,18 +264,19 @@ void motorInit()
     m_left_front.attach(M_PIN_LEFT_FRONT);
     m_right_rear.attach(M_PIN_RIGHT_REAR);
     m_right_front.attach(M_PIN_RIGHT_FRONT);
-    calibMotor();
+    initMotorSpeed();
+    // calibMotor();
 }
 
-
 void setup() {
-    Serial.begin(38400);
+    Serial.begin(9600);
     gyroInit();
     calibAccelGyro();
     initDT();
     initYPR();
     motorInit();  
 }
+
 void dualPID(float target_angle,float angle_in,float rate_in,float stabilize_kp,float stabilize_ki,float rate_kp,float rate_ki,float &stabilize_iterm,float &rate_iterm,float &output){
   float angle_error;
   float desired_rate;
@@ -312,10 +325,10 @@ void calcMotorSpeed(int speed)
         m_left_front_speed=MOTORMIN;
     }
     else {
-        m_right_rear_speed=speed+yaw_output+roll_output+pitch_output+60;
-        m_right_front_speed=speed-yaw_output-roll_output+pitch_output+60;
-        m_left_front_speed=yaw_output-roll_output-pitch_output+60;
-        m_left_rear_speed=speed-yaw_output+roll_output-pitch_output+60;
+        m_left_front_speed=speed+yaw_output+roll_output+pitch_output+100;  // 6번
+        m_right_front_speed=speed-yaw_output-roll_output+pitch_output+100; // 10번
+        m_left_rear_speed=yaw_output-roll_output-pitch_output+100;         // 
+        m_right_rear_speed=speed-yaw_output+roll_output-pitch_output+100;  // 
     }
     if(m_right_rear_speed>MOTORMAX){
         m_right_rear_speed=MOTORMAX;
@@ -343,16 +356,16 @@ void calcMotorSpeed(int speed)
         m_left_front_speed=MOTORMIN;
     }
     
-    Serial.print("왼쪽 뒤 모터 속도 : ");
+    Serial.print("left rear motor speed : ");
     Serial.println(m_left_rear_speed);
     
-    Serial.print("오른쪽 뒤 모터 속도 : ");
+    Serial.print("right rear motor speed : ");
     Serial.println(m_right_rear_speed);
 
-    Serial.print("왼쪽 앞 모터 속도 : ");
+    Serial.print("left front motor speed : ");
     Serial.println(m_left_front_speed);
     
-    Serial.print("오른쪽 앞 모터 속도 : ");
+    Serial.print("right front motor speed : ");
     Serial.println(m_right_front_speed);
     Serial.println();
     
@@ -366,7 +379,6 @@ void loop()
 {
     long time = millis();
     int now_speed=1000;
-    int target_speed=1100;//임의값
     getAngle();//현재 
     calcDT();
     calcAccelYPR(); //가속도 센서 Roll, Pitch, Yaw의 각도를 구하는 함수
@@ -379,12 +391,11 @@ void loop()
         return;
     }
     else{
-        while(getHeight()<=40 || now_speed<1300){ 
+        while(getHeight()<=40 || now_speed<1200){ 
             calcMotorSpeed(now_speed);
             delay(1000);
             now_speed+=1;
-        }    
+        }
+        return;
     }
 }
-
-
