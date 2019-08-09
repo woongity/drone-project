@@ -312,10 +312,10 @@ void calcMotorSpeed(int speed)
         m_left_front_speed=MOTORMIN;
     }
     else {
-        m_right_rear_speed=speed+yaw_output+roll_output+pitch_output;
-        m_right_front_speed=speed-yaw_output-roll_output+pitch_output;
-        m_left_front_speed=yaw_output-roll_output-pitch_output;
-        m_left_rear_speed=speed-yaw_output+roll_output-pitch_output;
+        m_right_rear_speed=speed+yaw_output+roll_output+pitch_output+60;
+        m_right_front_speed=speed-yaw_output-roll_output+pitch_output+60;
+        m_left_front_speed=yaw_output-roll_output-pitch_output+60;
+        m_left_rear_speed=speed-yaw_output+roll_output-pitch_output+60;
     }
     if(m_right_rear_speed>MOTORMAX){
         m_right_rear_speed=MOTORMAX;
@@ -342,6 +342,20 @@ void calcMotorSpeed(int speed)
     else if(m_left_front_speed<MOTORMIN){
         m_left_front_speed=MOTORMIN;
     }
+    
+    Serial.print("왼쪽 뒤 모터 속도 : ");
+    Serial.println(m_left_rear_speed);
+    
+    Serial.print("오른쪽 뒤 모터 속도 : ");
+    Serial.println(m_right_rear_speed);
+
+    Serial.print("왼쪽 앞 모터 속도 : ");
+    Serial.println(m_left_front_speed);
+    
+    Serial.print("오른쪽 앞 모터 속도 : ");
+    Serial.println(m_right_front_speed);
+    Serial.println();
+    
     m_right_rear.writeMicroseconds(m_right_rear_speed);
     m_right_front.writeMicroseconds(m_right_front_speed);
     m_left_front.writeMicroseconds(m_left_front_speed);
@@ -350,23 +364,25 @@ void calcMotorSpeed(int speed)
 
 void loop()
 {
-    int target_speed=1300;
-    getAngle();
+    long time = millis();
+    int now_speed=1000;
+    int target_speed=1100;//임의값
+    getAngle();//현재 
     calcDT();
-    calcAccelYPR(); //가속도 센서 Roll, Pitch, Yaw의 각도를 구하는 루틴
-    calcGyroYPR(); //자이로 센서 Roll, Pitch, Yaw의 각도를 구하는 루틴
-    calcFilteredYPR(); //상보필터를 적용해 Roll, Pitch, Yaw의 각도를 구하는 루틴
-    calcYPRtoDualPID(); //이중루프PID구현
+    calcAccelYPR(); //가속도 센서 Roll, Pitch, Yaw의 각도를 구하는 함수
+    calcGyroYPR(); //자이로 센서 Roll, Pitch, Yaw의 각도를 구하는 함수
+    calcFilteredYPR(); //상보필터를 적용해 Roll, Pitch, Yaw의 각도를 구하는 함수
+    calcYPRtoDualPID(); //이중루프PID
     
-    calcMotorSpeed(target_speed); //PID출력값을 구한것을 기준으로 모터의 속도를 계산한다.
     int count=0;
     if(count==3){
         return;
     }
     else{
-        while(getHeight()<=40){ 
-            throttleUp(1000);
-            delay(500);
+        while(getHeight()<=40 || now_speed<1300){ 
+            calcMotorSpeed(now_speed);
+            delay(1000);
+            now_speed+=1;
         }    
     }
 }
