@@ -8,7 +8,6 @@
 #define MOTORMIN 1000
 #define MPU_addr 0x68
 
-
 #define M_PIN_LEFT_FRONT 5
 #define M_PIN_LEFT_REAR 3
 #define M_PIN_RIGHT_FRONT 9
@@ -21,21 +20,6 @@ void calcDT(){
   dt = (t_now - t_prev) / 1000000.0;
   t_prev = t_now;
 }
-
-//모터 캘리브레이션을 진행한다. 
-// void calibMotor()
-// {
-//     m_left_rear.writeMicroseconds(MOTORMAX);
-//     m_left_front.writeMicroseconds(MOTORMAX);
-//     m_right_rear.writeMicroseconds(MOTORMAX);
-//     m_right_front.writeMicroseconds(MOTORMAX);
-    
-//     m_left_rear.writeMicroseconds(MOTORMIN);
-//     m_left_front.writeMicroseconds(MOTORMIN);
-//     m_right_rear.writeMicroseconds(MOTORMIN);
-//     m_right_front.writeMicroseconds(MOTORMIN);
-// }
-// 현재 자이로 센서에서 받아들이는 초기값을 설정한다. -> 초기에 정지한 상태에서 현재값을 읽어들인다.
 
 void calibAccelGyro(){
   float sum_acX = 0, sum_acY = 0, sum_acZ = 0;
@@ -391,11 +375,7 @@ void loop()
         return;
     }
     else{
-        while(getHeight()<=40 || now_speed<1200){ 
-            calcMotorSpeed(now_speed);
-            delay(1000);
-            now_speed+=1;
-        }
+        calcMotorSpeed(1100);
         return;
     }
 }
