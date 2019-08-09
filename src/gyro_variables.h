@@ -45,9 +45,6 @@ float base_yaw_target_angle;
 float base_acX, base_acY, base_acZ;  //가속도 평균값 저장 변수
 float base_gyX, base_gyY, base_gyZ;  //자이로 평균값 저장 변수
 
-float Kp = 2.5;                //P게인 값
-float Ki = 0;                  //I게인 값 
-float Kd = 1;                  //D게인 값
 
 MPU9250 mpu;
  

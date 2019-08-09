@@ -1,23 +1,5 @@
-/*
-센서는 앞에 s가 붙음
-모터는 앞에 m이 붙음
-함수는 구분자가 대문자
-변수는 구분자가 언더바
-
-
-*/
-// http://blog.naver.com/PostView.nhn?blogId=rlrkcka&logNo=221380249135&parentCategoryNo=&categoryNo=18&viewDate=&isShowPopularPosts=false&from=postView
-// http://reefwingrobotics.blogspot.com/2018/04/arduino-self-levelling-drone-part-5.html
-// https://sensibilityit.tistory.com/455?category=657462
-// http://kr.bluesink.io/t/mpu-9250/36/5
-// https://raduino.tistory.com/13
-//     m_left_rear.attach(3);
-//     m_left_front.attach(5);
-//     m_right_rear.attach(6);
-//     m_right_front.attach(9);
-
 #include "header.h"
-#include "functions.h"
+#include "functions_proto.h"
 #include "gyro_variables.h"
 #include "motor_sensor_variables.h"
 
@@ -25,17 +7,20 @@
 #define MOTORMAX 2000
 #define MOTORMIN 1000
 #define MPU_addr 0x68
-//모터                    
- 
-//mpu 기준으로 일단 구현
+
+#define M_PIN_LEFT_FRONT 5
+#define M_PIN_LEFT_REAR 3
+#define M_PIN_RIGHT_FRONT 9
+#define M_PIN_RIGHT_REAR 6
+
 
 //시간관련 값//
-
 void calcDT(){
   t_now = micros();
   dt = (t_now - t_prev) / 1000000.0;
   t_prev = t_now;
 }
+
 //모터 캘리브레이션을 진행한다. 
 void calibMotor()
 {
@@ -50,6 +35,7 @@ void calibMotor()
     m_right_front.writeMicroseconds(MOTORMIN);
 }
 // 현재 자이로 센서에서 받아들이는 초기값을 설정한다. -> 초기에 정지한 상태에서 현재값을 읽어들인다.
+
 void calibAccelGyro(){
   float sum_acX = 0, sum_acY = 0, sum_acZ = 0;
   float sum_gyX = 0, sum_gyY = 0, sum_gyZ = 0;
@@ -80,7 +66,7 @@ void initDT(){
 }
 
 void initYPR(){
-  //초기 호버링의 각도를 잡아주기 위해서 Roll, Pitch, Yaw 상보필터 구하는 과정을 10번 반복한다.
+  //초기 호버링의 각도를 잡아주기 위해서 Roll, Pitch, Yaw 상보필터 구하는 과정을 10번 반복.
   for(int i=0; i<10; i++){
     getAngle();
     calcDT();
@@ -169,7 +155,6 @@ long getLeftDis()
 void goForward()
 {
     hovering(0.3);
-    long distance=getFrontDisLeft();
 }
 
 void yaw()
@@ -212,15 +197,11 @@ void rollRight()
     
 }
 
-int pidControl()
-{
-            
-}
-
 long getFrontDisRight()
 {
     long distance=1;
     return distance;
+    //TODO : 일단 테스트를 위해 값을 이런 식으로 구현. 
 }
 void calcFilteredYPR(){
   const float ALPHA = 0.96;
@@ -238,7 +219,7 @@ void calcFilteredYPR(){
 
 long getFrontDisLeft()
 {
-    long distance;
+    long distance=1;
     return distance;
 }// lidar sensor distance
 
@@ -252,8 +233,10 @@ bool isStuckFront()
     else return false;
 }
 
+//자이로 센서 초기화
 void gyroInit()
 {
+    //i2c연결
     Wire.begin();
     Wire.beginTransmission(MPU_addr); 
     Wire.write(0x6B); 
@@ -261,13 +244,14 @@ void gyroInit()
     Wire.endTransmission(true); 
 }
 
+//모터 초기화, 캘리브레이션 까지 같이해줌
 void motorInit()
 {
     delay(2500);
-    m_left_rear.attach(3);
-    m_left_front.attach(5);
-    m_right_rear.attach(6);
-    m_right_front.attach(9);
+    m_left_rear.attach(M_PIN_LEFT_REAR);
+    m_left_front.attach(M_PIN_LEFT_FRONT);
+    m_right_rear.attach(M_PIN_RIGHT_REAR);
+    m_right_front.attach(M_PIN_RIGHT_FRONT);
     calibMotor();
 }
 
@@ -275,12 +259,106 @@ void motorInit()
 void setup() {
     Serial.begin(38400);
     gyroInit();
-    gyroInit();
+    calibAccelGyro();
+    initDT();
+    initYPR();
     motorInit();  
+}
+void dualPID(float target_angle,float angle_in,float rate_in,float stabilize_kp,float stabilize_ki,float rate_kp,float rate_ki,float &stabilize_iterm,float &rate_iterm,float &output){
+  float angle_error;
+  float desired_rate;
+  float rate_error;
+  float stabilize_pterm, rate_pterm;
+
+  //이중루프PID알고리즘//
+  angle_error = target_angle - angle_in;
+
+  stabilize_pterm = stabilize_kp * angle_error;
+  stabilize_iterm += stabilize_ki * angle_error * dt; //안정화 적분항//
+
+  desired_rate = stabilize_pterm;
+
+  rate_error = desired_rate - rate_in;
+
+  rate_pterm = rate_kp * rate_error; //각속도 비례항//
+  rate_iterm += rate_ki * rate_error * dt; //각속도 적분항//
+
+  output = rate_pterm + rate_iterm + stabilize_iterm; //최종 출력 : 각속도 비례항 + 각속도 적분항 + 안정화 적분항//
+}
+
+void calcYPRtoDualPID(){
+  roll_angle_in = filtered_angle_y;
+  roll_rate_in = gyro_y;
+
+  dualPID(roll_target_angle,roll_angle_in,roll_rate_in,roll_stabilize_kp,roll_stabilize_ki,roll_rate_kp,roll_rate_ki,roll_stabilize_iterm,roll_rate_iterm,roll_output);
+
+  pitch_angle_in = filtered_angle_x;
+  pitch_rate_in = gyro_x;
+
+  dualPID(pitch_target_angle,pitch_angle_in,pitch_rate_in,pitch_stabilize_kp,pitch_stabilize_ki,pitch_rate_kp,pitch_rate_ki,pitch_stabilize_iterm,pitch_rate_iterm,pitch_output);
+
+  yaw_angle_in = filtered_angle_z;
+  yaw_rate_in = gyro_z;
+
+  dualPID(yaw_target_angle,yaw_angle_in,yaw_rate_in,yaw_stabilize_kp,yaw_stabilize_ki,yaw_rate_kp,yaw_rate_ki,yaw_stabilize_iterm,yaw_rate_iterm,yaw_output);
+}
+
+void calcMotorSpeed(int speed)
+{
+    if(speed==MOTORMIN){
+        m_right_rear_speed=MOTORMIN;
+        m_right_front_speed=MOTORMIN;
+        m_left_rear_speed=MOTORMIN;
+        m_left_front_speed=MOTORMIN;
+    }
+    else {
+        m_right_rear_speed=speed+yaw_output+roll_output+pitch_output;
+        m_right_front_speed=speed-yaw_output-roll_output+pitch_output;
+        m_left_front_speed=yaw_output-roll_output-pitch_output;
+        m_left_rear_speed=speed-yaw_output+roll_output-pitch_output;
+    }
+    if(m_right_rear_speed>MOTORMAX){
+        m_right_rear_speed=MOTORMAX;
+    }
+    else if(m_right_rear_speed<MOTORMIN){
+        m_right_rear_speed=MOTORMIN;
+    }
+    
+    if(m_right_front_speed>MOTORMAX){
+        m_right_front_speed=MOTORMAX;
+    }
+    else if(m_right_front_speed<MOTORMIN){
+        m_right_front_speed=MOTORMIN;
+    }
+    if(m_left_rear_speed>MOTORMAX){
+        m_left_rear_speed=MOTORMAX;
+    }
+    else if(m_left_rear_speed<MOTORMIN){
+        m_left_rear_speed=MOTORMIN;
+    }
+    if(m_left_front_speed>MOTORMAX){
+        m_left_front_speed=MOTORMAX;
+    }
+    else if(m_left_front_speed<MOTORMIN){
+        m_left_front_speed=MOTORMIN;
+    }
+    m_right_rear.writeMicroseconds(m_right_rear_speed);
+    m_right_front.writeMicroseconds(m_right_front_speed);
+    m_left_front.writeMicroseconds(m_left_front_speed);
+    m_left_rear.writeMicroseconds(m_left_rear_speed);
 }
 
 void loop()
 {
+    int target_speed=1300;
+    getAngle();
+    calcDT();
+    calcAccelYPR(); //가속도 센서 Roll, Pitch, Yaw의 각도를 구하는 루틴
+    calcGyroYPR(); //자이로 센서 Roll, Pitch, Yaw의 각도를 구하는 루틴
+    calcFilteredYPR(); //상보필터를 적용해 Roll, Pitch, Yaw의 각도를 구하는 루틴
+    calcYPRtoDualPID(); //이중루프PID구현
+    
+    calcMotorSpeed(target_speed); //PID출력값을 구한것을 기준으로 모터의 속도를 계산한다.
     int count=0;
     if(count==3){
         return;
