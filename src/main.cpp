@@ -3,7 +3,6 @@
 #include "gyro_variables.h"
 #include "motor_sensor_variables.h"
 
-#define PING_INTRERVAL 33
 #define MOTORMAX 2000
 #define MOTORMIN 1000
 #define MPU_addr 0x68
@@ -252,14 +251,6 @@ void motorInit()
     // calibMotor();
 }
 
-void setup() {
-    Serial.begin(9600);
-    gyroInit();
-    calibAccelGyro();
-    initDT();
-    initYPR();
-    motorInit();  
-}
 
 void dualPID(float target_angle,float angle_in,float rate_in,float stabilize_kp,float stabilize_ki,float rate_kp,float rate_ki,float &stabilize_iterm,float &rate_iterm,float &output){
   float angle_error;
@@ -267,21 +258,23 @@ void dualPID(float target_angle,float angle_in,float rate_in,float stabilize_kp,
   float rate_error;
   float stabilize_pterm, rate_pterm;
 
-  //이중루프PID알고리즘//
+  //이중루프PID알고리즘
   angle_error = target_angle - angle_in;
 
   stabilize_pterm = stabilize_kp * angle_error;
-  stabilize_iterm += stabilize_ki * angle_error * dt; //안정화 적분항//
+  stabilize_iterm += stabilize_ki * angle_error * dt; //안정화 적분항
 
   desired_rate = stabilize_pterm;
 
   rate_error = desired_rate - rate_in;
 
-  rate_pterm = rate_kp * rate_error; //각속도 비례항//
-  rate_iterm += rate_ki * rate_error * dt; //각속도 적분항//
+  rate_pterm = rate_kp * rate_error; //각속도 비례항
+  rate_iterm += rate_ki * rate_error * dt; //각속도 적분항
 
   output = rate_pterm + rate_iterm + stabilize_iterm; //최종 출력 : 각속도 비례항 + 각속도 적분항 + 안정화 적분항//
 }
+
+
 
 void calcYPRtoDualPID(){
   roll_angle_in = filtered_angle_y;
@@ -310,8 +303,8 @@ void calcMotorSpeed(int speed)
     }
     else {
         m_left_front_speed=speed+yaw_output+roll_output+pitch_output+100;  // 6번
-        m_right_front_speed=speed-yaw_output-roll_output+pitch_output+100; // 10번
-        m_left_rear_speed=yaw_output-roll_output-pitch_output+100;         // 
+        m_right_front_speed=speed-yaw_output-roll_output+pitch_output+100; //  
+        m_left_rear_speed=speed+yaw_output-roll_output-pitch_output+100;         
         m_right_rear_speed=speed-yaw_output+roll_output-pitch_output+100;  // 
     }
     if(m_right_rear_speed>MOTORMAX){
@@ -357,6 +350,15 @@ void calcMotorSpeed(int speed)
     m_right_front.writeMicroseconds(m_right_front_speed);
     m_left_front.writeMicroseconds(m_left_front_speed);
     m_left_rear.writeMicroseconds(m_left_rear_speed);
+}
+
+void setup() {
+    Serial.begin(9600);
+    gyroInit();
+    calibAccelGyro();
+    initDT();
+    initYPR();
+    motorInit();  
 }
 
 void loop()
