@@ -124,13 +124,6 @@ void getAngle()
     GyZ = Wire.read() << 8 | Wire.read();//z축 자이로
     
     
-    Serial.print("x accel speed : ");Serial.println(AcX);
-    
-    Serial.print("y accel speed  : ");Serial.println(AcY);
-    Serial.print("z accel speed : ");Serial.println(AcZ);
-    Serial.print("x gyro speed : ");Serial.println(GyX);
-    Serial.print("y gyro speed : ");Serial.println(GyY);
-    Serial.print("z gyro speed : ");Serial.println(GyZ);
 }
 
 
@@ -161,19 +154,7 @@ void hovering()
 {
         
 }
-
 //상승, 하강
-
-void throttleUp(int speed)
-{
-    m_left_rear.writeMicroseconds(speed);
-    m_right_rear.writeMicroseconds(speed);
-    m_left_front.writeMicroseconds(speed);
-    m_right_front.writeMicroseconds(speed);
-    Serial.println(getHeight());
-        
-    hovering();
-}
 
 void throttleDown()
 {
@@ -261,13 +242,13 @@ void dualPID(float target_angle,float angle_in,float rate_in,float stabilize_kp,
   //이중루프PID알고리즘
   angle_error = target_angle - angle_in;
 
-  stabilize_pterm = stabilize_kp * angle_error;
+  stabilize_pterm = stabilize_kp * angle_error;//안정화 
   stabilize_iterm += stabilize_ki * angle_error * dt; //안정화 적분항
 
-  desired_rate = stabilize_pterm;
+  desired_rate = stabilize_pterm;//원하는 각도
 
   rate_error = desired_rate - rate_in;
-
+    
   rate_pterm = rate_kp * rate_error; //각속도 비례항
   rate_iterm += rate_ki * rate_error * dt; //각속도 적분항
 
@@ -280,7 +261,7 @@ void calcYPRtoDualPID(){
   roll_angle_in = filtered_angle_y;
   roll_rate_in = gyro_y;
 
-  dualPID(roll_target_angle,roll_angle_in,roll_rate_in,roll_stabilize_kp,roll_stabilize_ki,roll_rate_kp,roll_rate_ki,roll_stabilize_iterm,roll_rate_iterm,roll_output);
+  dualPID(roll_target_angle,roll_angle_in,roll_rate_in,roll_stabilize_kp,roll_stabilize_ki,roll_rate_kp,roll_rate_ki,roll_stabilize_iterm,roll_rate_iterm,roll_output); 
 
   pitch_angle_in = filtered_angle_x;
   pitch_rate_in = gyro_x;
@@ -293,18 +274,18 @@ void calcYPRtoDualPID(){
   dualPID(yaw_target_angle,yaw_angle_in,yaw_rate_in,yaw_stabilize_kp,yaw_stabilize_ki,yaw_rate_kp,yaw_rate_ki,yaw_stabilize_iterm,yaw_rate_iterm,yaw_output);
 }
 
-void calcMotorSpeed(int speed)
+void throttleUp(int speed)
 {
-    if(speed==MOTORMIN){
+    if(speed<=MOTORMIN){
         m_right_rear_speed=MOTORMIN;
         m_right_front_speed=MOTORMIN;
         m_left_rear_speed=MOTORMIN;
         m_left_front_speed=MOTORMIN;
     }
     else {
-        m_left_front_speed=speed+yaw_output+roll_output+pitch_output+100;  // 6번
-        m_right_front_speed=speed-yaw_output-roll_output+pitch_output+100; //  
-        m_left_rear_speed=speed+yaw_output-roll_output-pitch_output+100;         
+        m_left_front_speed=speed+yaw_output+roll_output+pitch_output+20;  
+        m_right_front_speed=speed-yaw_output-roll_output+pitch_output+20; //  
+        m_left_rear_speed=speed+yaw_output-roll_output-pitch_output+20;         
         m_right_rear_speed=speed-yaw_output+roll_output-pitch_output+100;  // 
     }
     if(m_right_rear_speed>MOTORMAX){
@@ -333,18 +314,7 @@ void calcMotorSpeed(int speed)
         m_left_front_speed=MOTORMIN;
     }
     
-    Serial.print("left rear motor speed : ");
-    Serial.println(m_left_rear_speed);
     
-    Serial.print("right rear motor speed : ");
-    Serial.println(m_right_rear_speed);
-
-    Serial.print("left front motor speed : ");
-    Serial.println(m_left_front_speed);
-    
-    Serial.print("right front motor speed : ");
-    Serial.println(m_right_front_speed);
-    Serial.println();
     
     m_right_rear.writeMicroseconds(m_right_rear_speed);
     m_right_front.writeMicroseconds(m_right_front_speed);
@@ -364,7 +334,7 @@ void setup() {
 void loop()
 {
     long time = millis();
-    int now_speed=1000;
+    int now_speed=1100;
     getAngle();//현재 
     calcDT();
     calcAccelYPR(); //가속도 센서 Roll, Pitch, Yaw의 각도를 구하는 함수
@@ -377,7 +347,26 @@ void loop()
         return;
     }
     else{
-        calcMotorSpeed(1100);
+        throttleUp(now_speed);
+        if(time%5000==0){
+            Serial.print("x accel speed : ");Serial.println(AcX);
+            Serial.print("y accel speed  : ");Serial.println(AcY);
+            Serial.print("z accel speed : ");Serial.println(AcZ);
+            Serial.print("x gyro speed : ");Serial.println(GyX);
+            Serial.print("y gyro speed : ");Serial.println(GyY);
+            Serial.print("z gyro speed : ");Serial.println(GyZ);
+            Serial.print("left rear motor speed : ");
+    Serial.println(m_left_rear_speed);
+    
+    Serial.print("right rear motor speed : ");
+    Serial.println(m_right_rear_speed);
+    Serial.print("left front motor speed : ");
+    Serial.println(m_left_front_speed);
+    
+    Serial.print("right front motor speed : ");
+    Serial.println(m_right_front_speed);
+    Serial.println();
+        }
         return;
     }
 }
