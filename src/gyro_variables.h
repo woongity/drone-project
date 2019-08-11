@@ -46,7 +46,7 @@ float base_acX, base_acY, base_acZ;  //가속도 평균값 저장 변수
 float base_gyX, base_gyY, base_gyZ;  //자이로 평균값 저장 변수
 
 
-MPU9250 mpu;
+MPU6050 mpu;
  
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
 //mpu 기준으로 일단 구현
