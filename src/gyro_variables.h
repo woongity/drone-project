@@ -1,7 +1,6 @@
 // 자이로 센서를 이용한 각도
 float gyro_x, gyro_y, gyro_z;
 
-
 float filtered_angle_x, filtered_angle_y, filtered_angle_z;
 float accel_angle_x, accel_angle_y, accel_angle_z;
 
@@ -45,12 +44,10 @@ float base_yaw_target_angle;
 float base_acX, base_acY, base_acZ;  //가속도 평균값 저장 변수
 float base_gyX, base_gyY, base_gyZ;  //자이로 평균값 저장 변수
 
-
-MPU6050 mpu;
+MPU9250 mpu;
  
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
 //mpu 기준으로 일단 구현
-NewPing sonar(9,8,200);
 double x; double y; double z;
 
 //시간관련 값//

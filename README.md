@@ -4,10 +4,12 @@
 
 ## 드론 정보
  
->    후방, 좌측 모터 3번핀    
->    후방, 우측 모터 5번핀    
->    전방, 좌측 모터 6번핀    
->    전방, 우측 모터 9번핀  
+>    후방, 좌측 모터 9번핀    
+>    후방, 우측 모터 10번핀    
+>    전방, 좌측 모터 3번핀    
+>    전방, 우측 모터 11번핀  
+>    sonar 3개 (측면 2개, 하방 1개)
+>    raider 2개
 
 ### 파일
 
@@ -31,6 +33,7 @@
 
 헤더파일들이 선언되어있다.
 
+
 #### 참고할 링크들
 
  http://blog.naver.com/PostView.nhn?blogId=rlrkcka&logNo=221380249135&parentCategoryNo=&categoryNo=18&viewDate=&isShowPopularPosts=false&from=postView  
@@ -46,4 +49,11 @@
 모터는 앞에 m이 붙음  
 함수는 구분자가 대문자  
 변수는 구분자가 언더바  
+항상 왼쪽을 true  
+오른쪽을 false라고 한다  
 
+
+###### 단위
+
+초 : mm
+거리 : cm

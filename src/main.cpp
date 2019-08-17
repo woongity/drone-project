@@ -6,27 +6,38 @@
 #define MOTORMAX 2000
 #define MOTORMIN 1000
 #define MPU_addr 0x68
+#define ALPHA 0.96
+#define BASE_SECOND 500
 
-#define M_PIN_LEFT_FRONT 10
-#define M_PIN_LEFT_REAR 9
-#define M_PIN_RIGHT_FRONT 11
-#define M_PIN_RIGHT_REAR 3
+int m_pin_left_rear=9;
+int m_pin_left_front=3;
+int m_pin_right_rear=10;
+int m_pin_right_front=11; 
 
+int fixed_altitude_speed=1000;
+bool is_window_found=false;
+
+
+int count=0;
+int height=0;
+int s_left_side_distance=150;
+int s_right_side_distance=150;
+int s_front_left_distance=150;
+int s_front_right_distance=150;
 
 void calibAccelGyro(){
   float sum_acX = 0, sum_acY = 0, sum_acZ = 0;
   float sum_gyX = 0, sum_gyY = 0, sum_gyZ = 0;
 
-    
-  for(int i=0; i<5; i++){
+  for(int i=0; i<10; i++){
     getAngle();
     sum_acX += AcX; sum_acY += AcY; sum_acZ += AcZ;
     sum_gyX += GyX; sum_gyY += GyY; sum_gyZ += GyZ;
-    delay(50);
+    delay(500);
   }
-  base_acX = sum_acX / 5; base_acY = sum_acY / 5; base_acZ = sum_acZ / 5;
-  base_gyX = sum_gyX / 5; base_gyY = sum_gyY / 5; base_gyZ = sum_gyZ / 5;
-}//10번 돌리면서 초기 값을 구한다.
+  base_acX = sum_acX / 10; base_acY = sum_acY / 10; base_acZ = sum_acZ / 10;
+  base_gyX = sum_gyX / 10; base_gyY = sum_gyY / 10; base_gyZ = sum_gyZ / 10;
+}//5번 돌리면서 초기 값을 구한다.
 
 void calcGyroYPR(){
   const float GYROXYZ_TO_DEGREES_PER_SEC = 131;
@@ -38,7 +49,7 @@ void calcGyroYPR(){
 
 void initYPR()
 {
-  for(int i=0; i<5; i++){
+  for(int i=0; i<10; i++){
     getAngle();
     calcAccelYPR();
     calcGyroYPR();
@@ -48,10 +59,10 @@ void initYPR()
     base_pitch_target_angle += filtered_angle_x;
     base_yaw_target_angle += filtered_angle_z;
 
-    delay(100);
-    base_roll_target_angle /= 5;
-    base_pitch_target_angle /= 5;
-    base_yaw_target_angle /= 5;
+    delay(500);
+    base_roll_target_angle /= 10;
+    base_pitch_target_angle /= 10;
+    base_yaw_target_angle /= 10;
 
     roll_target_angle = base_roll_target_angle;
     pitch_target_angle = base_pitch_target_angle;
@@ -77,18 +88,7 @@ void calcAccelYPR(){
 
   accel_angle_z = 0; 
 }
-
-// void initMotorSpeed()
-// {
-//     m_right_rear.writeMicroseconds(MOTORMIN);
-//     delay(1000);
-//     m_right_front.writeMicroseconds(MOTORMIN);
-//     delay(1000);
-//     m_left_front.writeMicroseconds(MOTORMIN);
-//     delay(1000);
-//     m_left_rear.writeMicroseconds(MOTORMIN);  
-//     delay(1000);
-// }
+//roll pitch yaw의 가속도를 계산한다
 
 
 void getAngle()
@@ -104,84 +104,82 @@ void getAngle()
     GyX = Wire.read() << 8 | Wire.read(); 
     GyY = Wire.read() << 8 | Wire.read();
     GyZ = Wire.read() << 8 | Wire.read();
-}
+}//자이로에서 raw값을 읽어온다
 
-
-long getHeight()
+void getHeight()
 {        
-    return sonar.ping_cm();
-}
-
-long getLeftDis()
-{
-    int distance=1;
-    return distance;   
-}
-
-void goForward()
-{
-}
-
-void yaw()
-{
     
 }
-
-void hovering()
+//높이를 측정
+void getLeftDis()
 {
         
 }
-
-void throttleDown()
+//왼쪽 초음파 센서로 거리를 읽어온다
+void goForward(int second)
 {
     
 }
-
-
-void rollLeft()
+//전진
+void goLeft()
 {
     
-}
 
-void rollRight()
+}
+//왼쪽으로 간다
+void goRight()
 {
     
-}
+} //오른쪽으로 간다
 
-long getFrontDisRight()
+void getFrontDisLeft()
 {
-    long distance=1;
-    return distance;
-}
+    
+}//앞 왼쪽에 달린 라이더 센서
+
+void getFrontDisRight()
+{
+}//앞 오른쪽에 달린 라이더 센서
 
 void calcFilteredYPR()
 {
-  const float ALPHA = 0.96;
   float tmp_angle_x, tmp_angle_y, tmp_angle_z;
-
+  
+  //변화량 적분
   tmp_angle_x = filtered_angle_x + gyro_x * dt;
   tmp_angle_y = filtered_angle_y + gyro_y * dt;
   tmp_angle_z = filtered_angle_z + gyro_z * dt;
 
+  //상보필터
   filtered_angle_x = ALPHA * tmp_angle_x + (1.0-ALPHA) * accel_angle_x;
   filtered_angle_y = ALPHA * tmp_angle_y + (1.0-ALPHA) * accel_angle_y;
   filtered_angle_z = tmp_angle_z;
 }
 
-long getFrontDisLeft()
+void getRightDis()
 {
-    long distance=1;
-    return distance;
-}// lidar sensor distance
+    
+}
 
-bool isStuckFront()
+bool isStuckFront(bool direction)
 {
-    long left_distance=getFrontDisLeft();
-    long right_distance=getFrontDisRight();
-    if(left_distance< 30|| right_distance<30){
-        return true;
-    }
-    else return false;
+    if(direction){
+        getFrontDisRight();
+        if(s_front_right_distance<30){
+            return true;
+        }else{
+            return false;
+        }
+    }//left방향으로 가는중이라면
+    else{
+        getFrontDisLeft();
+        if(s_front_left_distance<30){
+            return true;
+        }
+        else {
+            return false;
+        }
+    }//right 방향으로 가는 중이라면
 }
 
 void gyroInit()
@@ -195,12 +193,10 @@ void gyroInit()
 
 void motorInit()
 {
-    delay(2500);
-    m_left_rear.attach(M_PIN_LEFT_REAR);
-    m_left_front.attach(M_PIN_LEFT_FRONT);
-    m_right_rear.attach(M_PIN_RIGHT_REAR);
-    m_right_front.attach(M_PIN_RIGHT_FRONT);
-    // initMotorSpeed();
+    m_left_rear.attach(m_pin_left_rear);
+    m_left_front.attach(m_pin_left_front);
+    m_right_rear.attach(m_pin_right_rear);
+    m_right_front.attach(m_pin_right_front);
 }
 
 
@@ -243,14 +239,19 @@ void calcYPRtoDualPID(){
   dualPID(yaw_target_angle,yaw_angle_in,yaw_rate_in,yaw_stabilize_kp,yaw_stabilize_ki,yaw_rate_kp,yaw_rate_ki,yaw_stabilize_iterm,yaw_rate_iterm,yaw_output);
 }
 
-void throttleUp(int speed)
+void setSpeed(int speed)
 {
     if(speed<=MOTORMIN){
         m_right_rear_speed=MOTORMIN;
         m_right_front_speed=MOTORMIN;
         m_left_rear_speed=MOTORMIN;
         m_left_front_speed=MOTORMIN;
-        return;
+    }
+    else if(speed>=MOTORMAX){
+        m_right_rear_speed=MOTORMAX;
+        m_right_front_speed=MOTORMAX;
+        m_left_rear_speed=MOTORMAX;
+        m_left_front_speed=MOTORMAX;
     }
     else {
         m_left_front_speed=speed+yaw_output+roll_output+pitch_output+20;  
@@ -271,7 +272,6 @@ void throttleUp(int speed)
     else if(m_right_front_speed<=MOTORMIN){
         m_right_front_speed=MOTORMIN;
     }
-    
     if(m_left_rear_speed>=MOTORMAX){
         m_left_rear_speed=MOTORMAX;
     }
@@ -286,40 +286,14 @@ void throttleUp(int speed)
         m_left_front_speed=MOTORMIN;
     }
     
-    
     m_right_rear.writeMicroseconds(m_right_rear_speed);
     m_right_front.writeMicroseconds(m_right_front_speed);
     m_left_front.writeMicroseconds(m_left_front_speed);
     m_left_rear.writeMicroseconds(m_left_rear_speed);
 }
 
-void setup() {
-    Serial.begin(9600);
-    gyroInit();
-    calibAccelGyro();
-    initYPR();
-    motorInit();  
-}
-
-void loop()
+void printValue()
 {
-    int now_speed=1100;
-    getAngle();//초기 각도 계산 
-    calcAccelYPR(); 
-    calcGyroYPR(); 
-    calcFilteredYPR(); 
-    calcYPRtoDualPID(); 
-    
-    if(getHeight()<40){
-        
-    }
-    throttleUp(now_speed);
-    Serial.print("x accel speed : ");Serial.println(AcX);
-    Serial.print("y accel speed  : ");Serial.println(AcY);
-    Serial.print("z accel speed : ");Serial.println(AcZ);
-    Serial.print("x gyro speed : ");Serial.println(GyX);
-    Serial.print("y gyro speed : ");Serial.println(GyY);
-    Serial.print("z gyro speed : ");Serial.println(GyZ);
     Serial.print("left rear motor speed : ");
     Serial.println(m_left_rear_speed);
     
@@ -330,5 +304,97 @@ void loop()
     
     Serial.print("right front motor speed : ");
     Serial.println(m_right_front_speed);
-    Serial.println();
+    Serial.println();    
+}
+
+void landing(int second,int nowSpeed)
+{
+    int temp=(nowSpeed-MOTORMIN)/second;
+    for(int i=nowSpeed;i>=MOTORMIN;i-=temp){
+        m_left_rear.writeMicroseconds(MOTORMIN);
+        m_right_rear.writeMicroseconds(MOTORMIN);
+        m_right_front.writeMicroseconds(MOTORMIN);
+        m_left_front.writeMicroseconds(MOTORMIN);
+        second-=1000;
+        if(second==0) return;
+    }    
+}
+
+void stable_throttle(int now_speed)
+{
+    getAngle(); 
+    calcAccelYPR(); 
+    calcGyroYPR(); 
+    calcFilteredYPR(); 
+    calcYPRtoDualPID(); 
+    setSpeed(now_speed);
+    printValue();
+}
+
+
+Timer right_side_distance_timer;
+Timer left_side_distance_timer;
+Timer bottom_distance_timer;
+Timer front_left_distance_timer;
+    
+void setup() 
+{
+    Serial.begin(9600);
+    gyroInit();
+    calibAccelGyro();
+    initYPR();
+    motorInit();
+        
+}
+
+void loop()
+{   
+    is_window_found=false;
+    getHeight();
+    while(height<100){
+        stable_throttle(fixed_altitude_speed);
+        fixed_altitude_speed+=10;
+        getHeight();
+    }
+    if(count==3) {
+        landing(fixed_altitude_speed,5000); 
+        Serial.println("종료되었습니다");
+        exit(0); 
+    } 
+    //벽을 세번 넘어가면 함수를 끝낸다.
+    else{
+        if(isStuckFront()){//벽 만남
+            stable_throttle(fixed_altitude_speed);//호버링
+            while(1){
+                getLeftDis();
+                if(s_left_side_distance<20){
+                    break;                        
+                }
+                goLeft();
+                if(!isStuckFront()){//창문이 막히지 않았다면, 창문 발견
+                    is_window_found=true;
+                    goForward(2000);//얘는 창문을 통과하는 함수
+                    count++;
+                    break;
+                }//앞이 뚫려있다면 창문발견
+            }
+            while(s_right_side_distance>10){
+                if(is_window_found){
+                    break;
+                }//이미 이전에 창문을 발견 했다면 그냥 패스한다.
+                goRight();
+                getRightDis();
+                if(!isStuckFront()){
+                    is_window_found=true;
+                    break;
+                }
+            }
+            if(is_window_found){
+                goForward(BASE_SECOND);
+            }
+        }    
+        else{   
+            goForward(BASE_SECOND);            
+        }//앞에 벽 안만남
+    }
 }
